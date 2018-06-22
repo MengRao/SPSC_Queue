@@ -25,3 +25,10 @@ A multi-thread example for testing SPSCVarQueue/SPSCVarQueueOPT
 
 # build.sh
 Building commands of above *.cc using g++, note c++11 is needed.
+
+# Best Practices
+As in the examples, cpupin technique(SCHED_FIFO combined with cpu affinity) is used, which allows a thread to exclusively occupy a specified cpu core until it yields/exits. This is the recommended way in the realtime application where low and stable latency is required. But SCHED_FIFO may require root user permission.
+
+Also note that we use rdtsc/rdtscp assembly instruction wrapper to fetch current timestamp in the test cases, in order to measure latency. rdtsc/rdtscp is the lowest overhead method to get timestamp on X86 host, it actually returns the cpu cycle count since the host booted, and the single counter is shared among all cpu cores so it can measure inter-core communication latency. To get the latency in time units, we can divide the cycle difference by CPU frenquency, e.g: 210 cycles on 3.1GHZ cpu is around 70ns. 
+
+Also, as the msg memory is allocated on the queue and the allocation takes a bit of time, it's best to pre-allocate the msg you're about to send even when you don't have the entire msg content yet. However, this is only useful if you know the msg type beforehand.
