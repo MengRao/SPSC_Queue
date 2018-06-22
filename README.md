@@ -1,7 +1,7 @@
 # SPSC_Queue
 A single producer single consumer lock-free queue C++ template for ultimate low latency, which can be used in multithread conmunication as well as in shared memory IPC under Linux.
 
-The latency of communication of a 10~200B message is within 50~100 ns, between two cpu cores on the same socket. And sender and receiver don't need to copy a single byte of the msg, that is, a msg is allocated in the queue memory and set by sender, and then read directly by the receiver in another thread/process.
+The latency of communication of a 10-200B message is within 50-100 ns, between two cpu cores on the same socket. And sender and receiver don't need to copy a single byte of the msg, that is, a msg is allocated in the queue memory and set by sender, and then read directly by the receiver in another thread/process.
 
 This Library mainly contains two C++ templates, one for single typed queue and one for variant typed queue:
 
