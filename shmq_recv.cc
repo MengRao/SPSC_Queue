@@ -15,7 +15,7 @@ int main() {
     while(1) {
         while((msg = q->front()) == nullptr)
             ;
-        long latency = rdtscp();
+        long latency = rdtsc();
         latency -= msg->ts;
         std::cout << "recv: " << msg->buf << " ,latency: " << latency << std::endl;
         q->pop();

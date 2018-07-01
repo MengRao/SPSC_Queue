@@ -31,7 +31,8 @@ public:
         bool rewind = blk_sz > padding_sz;
         int32_t min_read_idx = write_idx + blk_sz + 1 + (rewind ? padding_sz : 0) - BLK_CNT; // + 1 for the null block at the end
         if((int32_t)read_idx_cach < min_read_idx) {
-            read_idx_cach = *(volatile uint32_t*)&read_idx;     // force read memory
+            asm volatile("" : "=m"(read_idx) : : ); // force read memory
+            read_idx_cach = read_idx;
             if(__builtin_expect((int32_t)read_idx_cach < min_read_idx, 0)) { // no enough space
                 return nullptr;
             }
@@ -50,19 +51,20 @@ public:
     template<class T>
     void push() {
         constexpr int16_t blk_sz = (sizeof(Header) + sizeof(T) + sizeof(Block) - 1) / sizeof(Block);
-        std::atomic_thread_fence(std::memory_order_relaxed); // force write memory
         blk[write_idx % BLK_CNT].header.blk_sz = blk_sz;
+        asm volatile("" : : "m"(blk) : ); // force write memory
         write_idx += blk_sz;
     }
 
     Header* front() {
-        int16_t blk_sz = *(volatile int16_t*)&(blk[read_idx % BLK_CNT].header.blk_sz);
+        asm volatile("" : "=m"(blk) : : ); // force read memory
+        int16_t blk_sz = blk[read_idx % BLK_CNT].header.blk_sz;
         if(blk_sz == 0) {
             return nullptr;
         }
         if(blk_sz < 0) {
             read_idx -= blk_sz;
-            blk_sz = *(volatile int16_t*)&(blk[0].header.blk_sz);
+            blk_sz = blk[0].header.blk_sz;
             if(blk_sz == 0) {
                 return nullptr;
             }
@@ -71,8 +73,8 @@ public:
     }
 
     void pop() {
-        std::atomic_thread_fence(std::memory_order_relaxed); // force write memory
         read_idx += blk[read_idx % BLK_CNT].header.blk_sz;
+        asm volatile("" : : "m"(read_idx) : ); // force write memory
     }
 
     void print() {

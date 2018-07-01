@@ -17,7 +17,7 @@ int main() {
             ;
         std::cout << "input: " << std::flush;
         if(!(std::cin >> msg->buf)) break;
-        msg->ts = rdtscp();
+        msg->ts = rdtsc();
         q->push();
     }
 

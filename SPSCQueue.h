@@ -8,7 +8,8 @@ public:
 
     T* alloc() {
         if(write_idx - read_idx_cach == CNT) {
-            read_idx_cach = *(volatile uint32_t*)&read_idx; // force read memory
+            asm volatile("" : "=m"(read_idx) : : ); // force read memory
+            read_idx_cach = read_idx; 
             if(__builtin_expect(write_idx - read_idx_cach == CNT, 0)) { // no enough space
                 return nullptr;
             }
@@ -17,20 +18,21 @@ public:
     }
 
     void push() {
-        std::atomic_thread_fence(std::memory_order_relaxed); // force write memory
         ++write_idx;
+        asm volatile("" : : "m"(write_idx) : ); // force write memory
     }
 
     T* front() {
-        if(read_idx == *(volatile uint32_t*)&write_idx) {
+        asm volatile("" : "=m"(write_idx) : : ); // force read memory
+        if(read_idx == write_idx) {
             return nullptr;
         }
         return &data[read_idx % CNT];
     }
 
     void pop() {
-        std::atomic_thread_fence(std::memory_order_relaxed); // force write memory
         ++read_idx;
+        asm volatile("" : : "m"(read_idx) : ); // force write memory
     }
 
     void print() {

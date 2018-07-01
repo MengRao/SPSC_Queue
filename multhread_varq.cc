@@ -30,7 +30,7 @@ void sendMsg(MsgQ* q, int& g_val) {
     T* msg = (T*)(header + 1);
     for(auto& v : msg->val) v = ++g_val;
     // for(int i = 0; i < sizeof(msg->val) / sizeof(*msg->val); i++) msg->val[i] = ++g_val;
-    header->userdata = (uint32_t)rdtscp();
+    header->userdata = (uint32_t)rdtsc();
     q->push<T>();
 }
 
@@ -83,7 +83,7 @@ void recvthread() {
     while(g_val < loop) {
         MsgQ::Header* header = q->front();
         if(header == nullptr) continue;
-        long latency = (uint32_t)rdtscp();
+        long latency = (uint32_t)rdtsc();
         latency -= header->userdata;
         if(latency < 0) latency += ((long)1 << 32);
         sum_lat += latency;

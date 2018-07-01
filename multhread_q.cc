@@ -29,7 +29,7 @@ void sendthread() {
             ;
         // for(int i = 0; i < sizeof(msg->val) / sizeof(msg->val[0]); i++) msg->val[i] = ++g_val;
         for(auto& v : msg->val) v = ++g_val;
-        msg->ts = rdtscp();
+        msg->ts = rdtsc();
         q->push();
         // std::cout << "send g_val: " << g_val << std::endl;
     }
@@ -51,7 +51,7 @@ void recvthread() {
     while(g_val < loop) {
         while((msg = q->front()) == nullptr)
             ;
-        long latency = rdtscp();
+        long latency = rdtsc();
         latency -= msg->ts;
         sum_lat += latency;
         cnt++;
