@@ -22,11 +22,12 @@ public:
         static_assert(blk_sz <= BLK_CNT, "msg size is larger than queue size!");
         uint32_t padding_sz = BLK_CNT - (write_idx % BLK_CNT);
         bool rewind = blk_sz > padding_sz;
-        int32_t min_read_idx = write_idx + blk_sz + (rewind ? padding_sz : 0) - BLK_CNT;
-        if((int32_t)read_idx_cach < min_read_idx) {
+        // min_read_idx could negtive which results in a large unsigned int
+        uint32_t min_read_idx = write_idx + blk_sz + (rewind ? padding_sz : 0) - BLK_CNT;
+        if((int)(read_idx_cach - min_read_idx) < 0) {
             asm volatile("" : "=m"(read_idx) : : ); // force read memory
             read_idx_cach = read_idx;
-            if(__builtin_expect((int32_t)read_idx_cach < min_read_idx, 0)) {         // no enough space
+            if((int)(read_idx_cach - min_read_idx) < 0) { // no enough space
                 return nullptr;
             }
         }
