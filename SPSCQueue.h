@@ -18,6 +18,7 @@ public:
     }
 
     void push() {
+        asm volatile("" : : "m"(data) :); // force write memory
         ++write_idx;
         asm volatile("" : : "m"(write_idx) : ); // force write memory
     }
@@ -27,6 +28,7 @@ public:
         if(read_idx == write_idx) {
             return nullptr;
         }
+        asm volatile("" : "=m"(data) : :); // force read memory
         return &data[read_idx % CNT];
     }
 
