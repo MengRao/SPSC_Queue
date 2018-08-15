@@ -8,17 +8,20 @@ This Library mainly contains two C++ templates, one for single typed queue and o
 ## SPSCQueue.h
 A simple single typed queue template, with configurable msg type and queue size. 
 
+## SPSCQueueOPT.h
+Another implementation of SPSCQueue, in which each msg has an additional bool header and write_idx and read_idx are not shared between threads. The performance is better or worse compared with SPSCQueue depending on the configuration.
+
 ## shmq_recv.cc/shmq_send.cc
-A shared memory IPC example making use of the SPSCQueue.
+A shared memory IPC example for testing SPSCQueue/SPSCQueueOPT.
 
 ## multhread_q.cc
-A multi-thread example for testing the SPSCQueue.
+A multi-thread example for testing SPSCQueue/SPSCQueueOPT.
 
 ## SPSCVarQueue.h
 A general purpose variant typed queue template, with a header before each msg. The queue is partitioned in 64 bytes(typical cache line size) blocks and each msg(with header) is aligned with blocks so as to avoid writing a new msg false sharing with reading the old message.
 
 ## SPSCVarQueueOPT.h
-An optimized version of SPSCVarQueue with the same interface. It differs in that the reading thread doesn't need to read write_idx so memory footprint is minimized, but the writing thread has to maintain additional null block invariant. Also the block size in this version is 8 bytes, in order to reduce the overhead of reading/writing the null block. Unfortunately, SPSCVarQueueOPT didn't show better performance over SPSCVarQueue under my tests, maybe it can be faster under your enviorment.
+Another implementation of SPSCVarQueue with the same interface. It differs in that the reading thread doesn't need to read write_idx so memory footprint is minimized, but the writing thread has to maintain additional null block invariant. Also the block size in this version is 8 bytes, in order to reduce the overhead of reading/writing the null block. Unfortunately, SPSCVarQueueOPT didn't show better performance over SPSCVarQueue under my tests, maybe it can be faster under your environment.
 
 ## multhread_varq.cc
 A multi-thread example for testing SPSCVarQueue/SPSCVarQueueOPT
