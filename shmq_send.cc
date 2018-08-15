@@ -9,7 +9,6 @@ int main() {
     }
 
     MsgQueue* q = getMsgQueue();
-    q->print();
 
     Msg* msg = nullptr;
     while(1) {

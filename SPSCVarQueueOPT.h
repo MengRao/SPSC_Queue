@@ -1,4 +1,3 @@
-#include <bits/stdc++.h>
 
 /*
     SPSCVarQueueOPT is similar to SPSCVarQueue, and it provides an optimization that
@@ -75,10 +74,6 @@ public:
     void pop() {
         read_idx += blk[read_idx % BLK_CNT].header.blk_sz;
         asm volatile("" : : "m"(read_idx) : ); // force write memory
-    }
-
-    void print() {
-        std::cout << "write_idx: " << write_idx << " read_idx: " << read_idx << std::endl;
     }
 
 private:

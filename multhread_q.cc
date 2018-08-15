@@ -44,7 +44,6 @@ void recvthread() {
     }
 
     MsgQ* q = &_q;
-    q->print();
 
     int cnt = 0;
     long sum_lat = 0;

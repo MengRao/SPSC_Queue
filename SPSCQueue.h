@@ -1,4 +1,3 @@
-#include <bits/stdc++.h>
 
 template<class T, uint32_t CNT>
 class SPSCQueue
@@ -35,10 +34,6 @@ public:
     void pop() {
         ++read_idx;
         asm volatile("" : : "m"(read_idx) : ); // force write memory
-    }
-
-    void print() {
-        std::cout << "write_idx: " << write_idx << " read_idx: " << read_idx << std::endl;
     }
 
 private:
