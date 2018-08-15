@@ -3,34 +3,33 @@ template<class T, uint32_t CNT>
 class SPSCQueueOPT
 {
 public:
-    static_assert(CNT && !(CNT & (CNT - 1)), "CNT must be a power of 2");
 
     T* alloc() {
-        auto& cur_blk = blk[write_idx % CNT];
+        auto& cur_blk = blk[write_idx];
         asm volatile("" : "=m"(cur_blk.avail) : :); // force read memory
         if(cur_blk.avail) return nullptr;           // no enough space
         return &cur_blk.data;
     }
 
     void push() {
-        auto& cur_blk = blk[write_idx % CNT];
+        auto& cur_blk = blk[write_idx];
         cur_blk.avail = true;
         asm volatile("" : : "m"(cur_blk) :); // force write memory
-        ++write_idx;
+        if(++write_idx == CNT) write_idx = 0;
     }
 
     T* front() {
-        auto& cur_blk = blk[read_idx % CNT];
+        auto& cur_blk = blk[read_idx];
         asm volatile("" : "=m"(cur_blk) : :); // force read memory
         if(!cur_blk.avail) return nullptr;
         return &cur_blk.data;
     }
 
     void pop() {
-        auto& cur_blk = blk[read_idx % CNT];
+        auto& cur_blk = blk[read_idx];
         cur_blk.avail = false;
         asm volatile("" : : "m"(cur_blk.avail) :); // force write memory
-        ++read_idx;
+        if(++read_idx == CNT) read_idx = 0;
     }
 
 private:
