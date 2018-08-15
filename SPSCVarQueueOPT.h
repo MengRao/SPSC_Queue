@@ -88,9 +88,9 @@ private:
     } blk[BLK_CNT];
 
     // both write_idx and read_idx_cach are used by writing thread only
-    uint32_t write_idx __attribute__((aligned(64))) = 0;
+    alignas(64) uint32_t write_idx = 0;
     uint32_t read_idx_cach = 0;
-    uint32_t read_idx __attribute__((aligned(64))) = 0;
+    alignas(64) uint32_t read_idx = 0;
 };
 
 

@@ -2,6 +2,7 @@
 #include "rdtsc.h"
 #include "cpupin.h"
 #include "SPSCQueue.h"
+#include "SPSCQueueOPT.h"
 
 struct Msg
 {
@@ -10,6 +11,7 @@ struct Msg
 };
 
 typedef SPSCQueue<Msg, 8> MsgQ;
+// typedef SPSCQueueOPT<Msg, 8> MsgQ;
 
 const int loop = 10000000;
 MsgQ _q;
@@ -55,9 +57,7 @@ void recvthread() {
         latency -= msg->ts;
         sum_lat += latency;
         cnt++;
-        // for(int i = 0; i < sizeof(msg->val) / sizeof(msg->val[0]); i++) assert(msg->val[i] == ++g_val);
         for(auto v : msg->val) assert(v == ++g_val);
-        // std::cout << "recv g_val: " << g_val << " latency: " << latency << std::endl;
         q->pop();
     }
 

@@ -73,13 +73,13 @@ public:
     }
 
 private:
-    struct Block // size of 64, same as cache line
+    struct alignas(64) Block // size of 64, same as cache line
     {
-        Header header __attribute__((aligned(64)));
+        Header header;
     } blk[BLK_CNT];
 
-    uint32_t write_idx __attribute__((aligned(64))) = 0;
+    alignas(64) uint32_t write_idx = 0;
     uint32_t read_idx_cach = 0; // used only by writing thread
-    uint32_t read_idx __attribute__((aligned(64))) = 0;
+    alignas(64) uint32_t read_idx = 0;
 };
 

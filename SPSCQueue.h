@@ -42,9 +42,9 @@ public:
     }
 
 private:
-    T data[CNT] __attribute__((aligned(64)));
-    uint32_t write_idx __attribute__((aligned(64))) = 0;
+    alignas(64) T data[CNT];
+    alignas(64) uint32_t write_idx = 0;
     uint32_t read_idx_cach = 0; // used only by writing thread
-    uint32_t read_idx __attribute__((aligned(64))) = 0;
+    alignas(64) uint32_t read_idx = 0;
 };
 
