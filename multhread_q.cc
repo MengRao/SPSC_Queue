@@ -7,11 +7,11 @@
 struct Msg
 {
     long ts;
-    long val[5];
+    long val[1];
 };
 
-typedef SPSCQueue<Msg, 8> MsgQ;
-// typedef SPSCQueueOPT<Msg, 8> MsgQ;
+typedef SPSCQueue<Msg, 2> MsgQ;
+// typedef SPSCQueueOPT<Msg, 2> MsgQ;
 
 const int loop = 10000000;
 MsgQ _q;
@@ -26,7 +26,7 @@ void sendthread() {
     int g_val = 0;
     Msg* msg = nullptr;
     while(g_val < loop) {
-        std::this_thread::yield();
+        // std::this_thread::yield();
         while((msg = q->alloc()) == nullptr)
             ;
         // for(int i = 0; i < sizeof(msg->val) / sizeof(msg->val[0]); i++) msg->val[i] = ++g_val;
@@ -52,10 +52,10 @@ void recvthread() {
     while(g_val < loop) {
         while((msg = q->front()) == nullptr)
             ;
-        long latency = rdtsc();
-        latency -= msg->ts;
-        sum_lat += latency;
-        cnt++;
+    long latency = rdtsc();
+    latency -= msg->ts;
+    sum_lat += latency;
+    cnt++;
         for(auto v : msg->val) assert(v == ++g_val);
         q->pop();
     }

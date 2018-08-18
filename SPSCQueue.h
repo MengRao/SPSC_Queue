@@ -27,11 +27,13 @@ public:
         if(read_idx == write_idx) {
             return nullptr;
         }
-        asm volatile("" : "=m"(write_idx), "=m"(data) : :); // memory fence
-        return &data[read_idx % CNT];
+        T* ret = &data[read_idx % CNT];
+        asm volatile("" : "=m"(data) : :); // memory fence
+        return ret;
     }
 
     void pop() {
+        asm volatile("" : "=m"(data) : "m"(read_idx) :); // memory fence
         ++read_idx;
         asm volatile("" : : "m"(read_idx) : ); // force write memory
     }

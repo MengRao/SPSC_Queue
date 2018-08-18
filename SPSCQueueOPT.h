@@ -5,30 +5,33 @@ class SPSCQueueOPT
 public:
 
     T* alloc() {
+        asm volatile("" : "=m"(blk) : :); // force read memory
         auto& cur_blk = blk[write_idx];
-        asm volatile("" : "=m"(cur_blk.avail) : :); // force read memory
-        if(cur_blk.avail) return nullptr;           // no enough space
+        if(cur_blk.avail) return nullptr; // no enough space
         return &cur_blk.data;
     }
 
     void push() {
+        asm volatile("" : : "m"(blk) :); // memory fence
         auto& cur_blk = blk[write_idx];
         cur_blk.avail = true;
-        asm volatile("" : : "m"(cur_blk) :); // force write memory
+        asm volatile("" : : "m"(blk) :); // force write memory
         if(++write_idx == CNT) write_idx = 0;
     }
 
     T* front() {
+        asm volatile("" : "=m"(blk) : :); // force read memory
         auto& cur_blk = blk[read_idx];
-        asm volatile("" : "=m"(cur_blk) : :); // force read memory
         if(!cur_blk.avail) return nullptr;
+        asm volatile("" : "=m"(blk) : :); // memory fence
         return &cur_blk.data;
     }
 
     void pop() {
+        asm volatile("" : "=m"(blk) : "m"(blk) :); // memory fence
         auto& cur_blk = blk[read_idx];
         cur_blk.avail = false;
-        asm volatile("" : : "m"(cur_blk.avail) :); // force write memory
+        asm volatile("" : : "m"(blk) :); // force write memory
         if(++read_idx == CNT) read_idx = 0;
     }
 

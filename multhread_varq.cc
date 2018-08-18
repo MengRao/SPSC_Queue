@@ -2,9 +2,9 @@
 #include "rdtsc.h"
 #include "cpupin.h"
 #include "SPSCVarQueue.h"
-#include "SPSCVarQueueOPT.h"
+//#include "SPSCVarQueueOPT.h"
 
-typedef SPSCVarQueue<32> MsgQ; // blk size is 64B
+typedef SPSCVarQueue<2048> MsgQ;
 // typedef SPSCVarQueueOPT<256> MsgQ; // blk size is 8B
 
 template<uint32_t N, uint16_t MSGTYPE>
@@ -24,14 +24,14 @@ const int loop = 100000;
 
 template<class T>
 void sendMsg(MsgQ* q, int& g_val) {
-    MsgQ::Header* header = nullptr;
-    while((header = q->alloc<T>()) == nullptr)
+    MsgQ::MsgHeader* header = nullptr;
+    while((header = q->alloc(sizeof(T))) == nullptr)
         ;
+    header->msg_type = T::msg_type;
     T* msg = (T*)(header + 1);
     for(auto& v : msg->val) v = ++g_val;
-    // for(int i = 0; i < sizeof(msg->val) / sizeof(*msg->val); i++) msg->val[i] = ++g_val;
     header->userdata = (uint32_t)rdtsc();
-    q->push<T>();
+    q->push();
 }
 
 void sendthread() {
@@ -58,13 +58,11 @@ void sendthread() {
         else if(tp == 4) {
             sendMsg<Msg4>(q, g_val);
         }
-        // std::cout << "send tp: " << tp << " g_val: " << g_val << std::endl;
     }
-    // std::cout << "shmq_send done, val: " << g_val << std::endl;
 }
 
 template<class T>
-void handleMsg(MsgQ::Header* header, int& g_val) {
+void handleMsg(MsgQ::MsgHeader* header, int& g_val) {
     T* msg = (T*)(header + 1);
     for(auto v : msg->val) assert(v == ++g_val);
     // for(int i = 0; i < sizeof(msg->val) / sizeof(*msg->val); i++) assert(msg->val[i] == ++g_val);
@@ -81,7 +79,7 @@ void recvthread() {
     long sum_lat = 0;
     int g_val = 0;
     while(g_val < loop) {
-        MsgQ::Header* header = q->front();
+        MsgQ::MsgHeader* header = q->front();
         if(header == nullptr) continue;
         long latency = (uint32_t)rdtsc();
         latency -= header->userdata;
@@ -104,7 +102,6 @@ void recvthread() {
         else {
             std::cout << "error, unknown msg_type: " << msg_type << std::endl;
         }
-        // std::cout << "recv tp: " << msg_type << " g_val: " << g_val << " latency: " << latency << std::endl;
         q->pop();
     }
 
