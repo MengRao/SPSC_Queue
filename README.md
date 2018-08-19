@@ -6,10 +6,10 @@ The latency of communication of a 10-200B message is within 50-100 ns between tw
 This Library mainly contains two C++ templates, one for single typed queue and one for variant typed queue:
 
 ## SPSCQueue.h
-A simple single typed queue template, with configurable msg type and queue size. 
+A simple single typed queue template, with configurable msg type and queue size.
 
 ## SPSCQueueOPT.h
-Another implementation of SPSCQueue, in which each msg has an additional bool header and write_idx and read_idx are not shared between threads. The performance is better or worse compared with SPSCQueue depending on the configuration.
+Another implementation of SPSCQueue, in which each msg has an additional bool header and write_idx and read_idx are not shared between threads. The performance is better or worse compared with SPSCQueue depending on the configuration. Note that Push() and Pop() operation are not atomic(check source code for details).
 
 ## shmq_recv.cc/shmq_send.cc
 A shared memory IPC example for testing SPSCQueue/SPSCQueueOPT.
