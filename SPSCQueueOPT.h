@@ -1,4 +1,8 @@
 
+// Be aware that push()/pop() is not atomic.
+// So if the queue is persisted in some shared memory and the writer/reader program crashed
+// in the middle of push()/pop() call, the queue could be corrupted.
+// Use SPSCQueue if this is a problem.
 template<class T, uint32_t CNT>
 class SPSCQueueOPT
 {
