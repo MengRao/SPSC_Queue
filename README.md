@@ -18,7 +18,7 @@ A shared memory IPC example for testing SPSCQueue/SPSCQueueOPT.
 A multi-thread example for testing SPSCQueue/SPSCQueueOPT.
 
 ## SPSCVarQueue.h
-A general purpose variant typed queue template, with a header before each msg. The queue is partitioned in 64 bytes(typical cache line size) blocks and each msg(with header) is aligned with blocks so as to avoid writing a new msg false sharing with reading the old message.
+A general purpose variant typed queue template, with a header before each msg. The queue is partitioned in 64 byte(typical cache line size) blocks and each msg(with header) is aligned with the block so as to avoid writing a new msg false sharing with reading the old message.
 
 ## multhread_varq.cc
 A multi-thread example for testing SPSCVarQueue
