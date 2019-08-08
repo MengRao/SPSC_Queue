@@ -47,6 +47,15 @@ public:
         asm volatile("" : : "m"(write_idx) : ); // force write memory
     }
 
+    template<typename Writer>
+    bool tryPush(Writer writer) {
+      T* p = alloc();
+      if (!p) return false;
+      writer(p);
+      push();
+      return true;
+    }
+
     T* front() {
         asm volatile("" : "=m"(write_idx) : : ); // force read memory
         if(read_idx == write_idx) {
@@ -63,7 +72,16 @@ public:
         asm volatile("" : : "m"(read_idx) : ); // force write memory
     }
 
-private:
+    template<typename Reader>
+    bool tryPop(Reader reader) {
+      T* v = front();
+      if (!v) return false;
+      reader(v);
+      pop();
+      return true;
+    }
+
+  private:
     alignas(64) T data[CNT];
     alignas(64) uint32_t write_idx = 0;
     uint32_t read_idx_cach = 0; // used only by writing thread

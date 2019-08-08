@@ -17,30 +17,25 @@ const int loop = 10000000;
 MsgQ _q;
 
 void sendthread() {
-    if(!cpupin(2)) {
-        exit(1);
+  if (!cpupin(2)) {
+    exit(1);
     }
 
     MsgQ* q = &_q;
 
     int g_val = 0;
-    Msg* msg = nullptr;
     while(g_val < loop) {
-        // std::this_thread::yield();
-        while((msg = q->alloc()) == nullptr)
-            ;
-        // for(int i = 0; i < sizeof(msg->val) / sizeof(msg->val[0]); i++) msg->val[i] = ++g_val;
-        for(auto& v : msg->val) v = ++g_val;
+      while (!q->tryPush([&](Msg* msg) {
+        for (auto& v : msg->val) v = ++g_val;
         msg->ts = rdtsc();
-        q->push();
-        // std::cout << "send g_val: " << g_val << std::endl;
+      }))
+        ;
     }
-    // std::cout << "shmq_send done, val: " << g_val << std::endl;
 }
 
 void recvthread() {
-    if(!cpupin(3)) {
-        exit(1);
+  if (!cpupin(3)) {
+    exit(1);
     }
 
     MsgQ* q = &_q;
@@ -50,17 +45,17 @@ void recvthread() {
     int g_val = 0;
     Msg* msg = nullptr;
     while(g_val < loop) {
-        while((msg = q->front()) == nullptr)
-            ;
-    long latency = rdtsc();
-    latency -= msg->ts;
-    sum_lat += latency;
-    cnt++;
+      while (!q->tryPop([&](Msg* msg) {
+        long latency = rdtsc();
+        latency -= msg->ts;
+        sum_lat += latency;
+        cnt++;
         for(auto v : msg->val) assert(v == ++g_val);
-        q->pop();
+      }))
+        ;
     }
 
-    std::cout << "shmq_recv done, val: " << g_val << " avg_lat: " << (sum_lat / cnt) << std::endl;
+    std::cout << "recvthread done, val: " << g_val << " avg_lat: " << (sum_lat / cnt) << std::endl;
 }
 
 

@@ -48,6 +48,15 @@ public:
         if(++write_idx == CNT) write_idx = 0;
     }
 
+    template<typename Writer>
+    bool tryPush(Writer writer) {
+      T* p = alloc();
+      if (!p) return false;
+      writer(p);
+      push();
+      return true;
+    }
+
     T* front() {
         asm volatile("" : "=m"(blk) : :); // force read memory
         auto& cur_blk = blk[read_idx];
@@ -64,7 +73,16 @@ public:
         if(++read_idx == CNT) read_idx = 0;
     }
 
-private:
+    template<typename Reader>
+    bool tryPop(Reader reader) {
+      T* v = front();
+      if (!v) return false;
+      reader(v);
+      pop();
+      return true;
+    }
+
+  private:
     struct alignas(64) Block
     {
         bool avail = false;

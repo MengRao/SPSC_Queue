@@ -24,19 +24,18 @@ const int loop = 100000;
 
 template<class T>
 void sendMsg(MsgQ* q, int& g_val) {
-    MsgQ::MsgHeader* header = nullptr;
-    while((header = q->alloc(sizeof(T))) == nullptr)
-        ;
+  while (!q->tryPush(sizeof(T), [&](MsgQ::MsgHeader* header) {
     header->msg_type = T::msg_type;
     T* msg = (T*)(header + 1);
-    for(auto& v : msg->val) v = ++g_val;
+    for (auto& v : msg->val) v = ++g_val;
     header->userdata = (uint32_t)rdtsc();
-    q->push();
+  }))
+    ;
 }
 
 void sendthread() {
-    if(!cpupin(2)) {
-        exit(1);
+  if (!cpupin(2)) {
+    exit(1);
     }
 
     MsgQ* q = &_q;
@@ -69,8 +68,8 @@ void handleMsg(MsgQ::MsgHeader* header, int& g_val) {
 }
 
 void recvthread() {
-    if(!cpupin(3)) {
-        exit(1);
+  if (!cpupin(3)) {
+    exit(1);
     }
 
     MsgQ* q = &_q;
@@ -79,30 +78,29 @@ void recvthread() {
     long sum_lat = 0;
     int g_val = 0;
     while(g_val < loop) {
-        MsgQ::MsgHeader* header = q->front();
-        if(header == nullptr) continue;
+      q->tryPop([&](MsgQ::MsgHeader* header) {
         long latency = (uint32_t)rdtsc();
         latency -= header->userdata;
-        if(latency < 0) latency += ((long)1 << 32);
+        if (latency < 0) latency += ((long)1 << 32);
         sum_lat += latency;
         cnt++;
         auto msg_type = header->msg_type;
-        if(msg_type == 1) {
-            handleMsg<Msg1>(header, g_val);
+        if (msg_type == 1) {
+          handleMsg<Msg1>(header, g_val);
         }
-        else if(msg_type == 2) {
-            handleMsg<Msg2>(header, g_val);
+        else if (msg_type == 2) {
+          handleMsg<Msg2>(header, g_val);
         }
-        else if(msg_type == 3) {
-            handleMsg<Msg3>(header, g_val);
+        else if (msg_type == 3) {
+          handleMsg<Msg3>(header, g_val);
         }
-        else if(msg_type == 4) {
-            handleMsg<Msg4>(header, g_val);
+        else if (msg_type == 4) {
+          handleMsg<Msg4>(header, g_val);
         }
         else {
-            std::cout << "error, unknown msg_type: " << msg_type << std::endl;
+          std::cout << "error, unknown msg_type: " << msg_type << std::endl;
         }
-        q->pop();
+      });
     }
 
     std::cout << "shmq_recv done, val: " << g_val << " avg_lat: " << (sum_lat / cnt) << std::endl;

@@ -74,6 +74,15 @@ public:
         asm volatile("" : : "m"(write_idx) : ); // force write memory
     }
 
+    template<typename Writer>
+    bool tryPush(uint16_t size, Writer writer) {
+      MsgHeader* header = alloc(size);
+      if (!header) return false;
+      writer(header);
+      push();
+      return true;
+    }
+
     MsgHeader* front() {
         asm volatile("" : "=m"(write_idx), "=m"(blk) : :); // force read memory
         if(read_idx == write_idx) {
@@ -96,7 +105,16 @@ public:
         asm volatile("" : : "m"(read_idx) : ); // force write memory
     }
 
-private:
+    template<typename Reader>
+    bool tryPop(Reader reader) {
+      MsgHeader* header = front();
+      if (!header) return false;
+      reader(header);
+      pop();
+      return true;
+    }
+
+  private:
     struct Block // size of 64, same as cache line
     {
         alignas(64) MsgHeader header;
