@@ -2,10 +2,8 @@
 #include "rdtsc.h"
 #include "cpupin.h"
 #include "SPSCVarQueue.h"
-//#include "SPSCVarQueueOPT.h"
 
-typedef SPSCVarQueue<2048> MsgQ;
-// typedef SPSCVarQueueOPT<256> MsgQ; // blk size is 8B
+typedef SPSCVarQueue<1024> MsgQ;
 
 template<uint32_t N, uint16_t MSGTYPE>
 struct Msg
@@ -14,27 +12,27 @@ struct Msg
     long val[N];
 };
 
-typedef Msg<3, 1> Msg1;
-typedef Msg<8, 2> Msg2;
-typedef Msg<17, 3> Msg3;
-typedef Msg<45, 4> Msg4;
+typedef Msg<1, 1> Msg1;
+typedef Msg<2, 2> Msg2;
+typedef Msg<3, 3> Msg3;
+typedef Msg<4, 4> Msg4;
 
 MsgQ _q;
 const int loop = 100000;
+const int sleep_cycles = 1000;
 
 template<class T>
 void sendMsg(MsgQ* q, int& g_val) {
-  while (!q->tryPush(sizeof(T), [&](MsgQ::MsgHeader* header) {
+  q->tryPush(sizeof(T), [&](MsgQ::MsgHeader* header) {
     header->msg_type = T::msg_type;
     T* msg = (T*)(header + 1);
     for (auto& v : msg->val) v = ++g_val;
-    header->userdata = (uint32_t)rdtsc();
-  }))
-    ;
+    header->userdata = (uint32_t)rdtscp();
+  });
 }
 
 void sendthread() {
-  if (!cpupin(2)) {
+  if (!cpupin(4)) {
     exit(1);
     }
 
@@ -43,20 +41,17 @@ void sendthread() {
     int g_val = 0;
     srand(time(NULL));
     while(g_val < loop) {
-        std::this_thread::yield();
-        int tp = rand() % 4 + 1;
-        if(tp == 1) {
-            sendMsg<Msg1>(q, g_val);
+      // std::this_thread::yield();
+      int tp = rand() % 4 + 1;
+      switch (tp) {
+        case 1: sendMsg<Msg1>(q, g_val); break;
+        case 2: sendMsg<Msg2>(q, g_val); break;
+        case 3: sendMsg<Msg3>(q, g_val); break;
+        case 4: sendMsg<Msg4>(q, g_val); break;
         }
-        else if(tp == 2) {
-            sendMsg<Msg2>(q, g_val);
-        }
-        else if(tp == 3) {
-            sendMsg<Msg3>(q, g_val);
-        }
-        else if(tp == 4) {
-            sendMsg<Msg4>(q, g_val);
-        }
+        auto expire = rdtsc() + sleep_cycles;
+        while (rdtsc() < expire)
+          ;
     }
 }
 
@@ -68,7 +63,7 @@ void handleMsg(MsgQ::MsgHeader* header, int& g_val) {
 }
 
 void recvthread() {
-  if (!cpupin(3)) {
+  if (!cpupin(5)) {
     exit(1);
     }
 
@@ -79,26 +74,16 @@ void recvthread() {
     int g_val = 0;
     while(g_val < loop) {
       q->tryPop([&](MsgQ::MsgHeader* header) {
-        long latency = (uint32_t)rdtsc();
+        long latency = (uint32_t)rdtscp();
         latency -= header->userdata;
         if (latency < 0) latency += ((long)1 << 32);
         sum_lat += latency;
         cnt++;
-        auto msg_type = header->msg_type;
-        if (msg_type == 1) {
-          handleMsg<Msg1>(header, g_val);
-        }
-        else if (msg_type == 2) {
-          handleMsg<Msg2>(header, g_val);
-        }
-        else if (msg_type == 3) {
-          handleMsg<Msg3>(header, g_val);
-        }
-        else if (msg_type == 4) {
-          handleMsg<Msg4>(header, g_val);
-        }
-        else {
-          std::cout << "error, unknown msg_type: " << msg_type << std::endl;
+        switch (header->msg_type) {
+          case 1: handleMsg<Msg1>(header, g_val); break;
+          case 2: handleMsg<Msg2>(header, g_val); break;
+          case 3: handleMsg<Msg3>(header, g_val); break;
+          case 4: handleMsg<Msg4>(header, g_val); break;
         }
       });
     }

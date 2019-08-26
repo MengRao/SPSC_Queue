@@ -6,35 +6,42 @@
 
 struct Msg
 {
-    long ts;
-    long val[1];
+  int val_len;
+  long ts;
+  long val[4];
 };
 
-typedef SPSCQueue<Msg, 2> MsgQ;
-// typedef SPSCQueueOPT<Msg, 2> MsgQ;
+// typedef SPSCQueue<Msg, 16> MsgQ;
+typedef SPSCQueueOPT<Msg, 16> MsgQ;
 
-const int loop = 10000000;
+const int loop = 100000;
+const int sleep_cycles = 1000;
 MsgQ _q;
 
 void sendthread() {
-  if (!cpupin(2)) {
+  if (!cpupin(4)) {
     exit(1);
     }
 
     MsgQ* q = &_q;
 
     int g_val = 0;
+    srand(time(NULL));
     while(g_val < loop) {
-      while (!q->tryPush([&](Msg* msg) {
-        for (auto& v : msg->val) v = ++g_val;
-        msg->ts = rdtsc();
-      }))
+      q->tryPush([&](Msg* msg) {
+        int val_len = rand() % 4 + 1;
+        msg->val_len = val_len;
+        for (int i = 0; i < val_len; i++) msg->val[i] = ++g_val;
+        msg->ts = rdtscp();
+      });
+      auto expire = rdtsc() + sleep_cycles;
+      while (rdtsc() < expire)
         ;
     }
 }
 
 void recvthread() {
-  if (!cpupin(3)) {
+  if (!cpupin(5)) {
     exit(1);
     }
 
@@ -45,14 +52,13 @@ void recvthread() {
     int g_val = 0;
     Msg* msg = nullptr;
     while(g_val < loop) {
-      while (!q->tryPop([&](Msg* msg) {
-        long latency = rdtsc();
+      q->tryPop([&](Msg* msg) {
+        long latency = rdtscp();
         latency -= msg->ts;
         sum_lat += latency;
         cnt++;
-        for(auto v : msg->val) assert(v == ++g_val);
-      }))
-        ;
+        for (int i = 0; i < msg->val_len; i++) assert(msg->val[i] == ++g_val);
+      });
     }
 
     std::cout << "recvthread done, val: " << g_val << " avg_lat: " << (sum_lat / cnt) << std::endl;
@@ -68,7 +74,5 @@ int main() {
 
     return 0;
 }
-
-
 
 
