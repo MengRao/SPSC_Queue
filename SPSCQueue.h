@@ -82,13 +82,11 @@ public:
     }
 
   private:
-    alignas(64) T data[CNT];
-    char pad1[64];
+    alignas(128) T data[CNT];
 
-    alignas(64) uint32_t write_idx = 0;
+    alignas(128) uint32_t write_idx = 0;
     uint32_t read_idx_cach = 0; // used only by writing thread
-    char pad2[64];
 
-    alignas(64) uint32_t read_idx = 0;
+    alignas(128) uint32_t read_idx = 0;
 };
 

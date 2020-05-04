@@ -88,12 +88,10 @@ public:
         bool avail = false;
         T data;
     } blk[CNT];
-    char pad1[64];
 
-    alignas(64) uint32_t write_idx = 0; // used only by writing thread
-    char pad2[64];
+    alignas(128) uint32_t write_idx = 0; // used only by writing thread
 
-    alignas(64) uint32_t read_idx = 0; // used only by reading thread
+    alignas(128) uint32_t read_idx = 0; // used only by reading thread
 };
 
 
