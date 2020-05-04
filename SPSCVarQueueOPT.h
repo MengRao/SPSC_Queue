@@ -24,14 +24,11 @@ SOFTWARE.
 
 #pragma once
 
-// alloc/push/front/pop are atomic operations, which is crash safe for shared-memory IPC
+// alloc and push are not atomic, so SPSCVarQueueOPT should not be used in shared-memory IPC(use SPSCVarQueue instead)
 template<uint32_t Bytes>
-class SPSCVarQueue
+class SPSCVarQueueOPT
 {
 public:
-  static constexpr uint32_t BLK_CNT = Bytes / 64;
-  static_assert(BLK_CNT && !(BLK_CNT & (BLK_CNT - 1)), "BLK_CNT must be a power of 2");
-
   struct MsgHeader
   {
     // size of this msg, including header itself
@@ -43,36 +40,42 @@ public:
     // eliminate userdata
     uint32_t userdata;
   };
+  static constexpr uint32_t BLK_CNT = Bytes / sizeof(MsgHeader);
 
-  MsgHeader* alloc(uint16_t size) {
-    size += sizeof(MsgHeader);
-    uint32_t blk_sz = (size + sizeof(Block) - 1) / sizeof(Block);
-    uint32_t padding_sz = BLK_CNT - (write_idx % BLK_CNT);
-    bool rewind = blk_sz > padding_sz;
-    // min_read_idx could be a negtive value which results in a large unsigned int
-    uint32_t min_read_idx = write_idx + blk_sz + (rewind ? padding_sz : 0) - BLK_CNT;
-    if ((int)(read_idx_cach - min_read_idx) < 0) {
+  MsgHeader* alloc(uint16_t size_) {
+    size = size_ + sizeof(MsgHeader);
+    uint32_t blk_sz = (size + sizeof(MsgHeader) - 1) / sizeof(MsgHeader);
+    if (blk_sz >= free_write_cnt) {
       asm volatile("" : "=m"(read_idx) : :); // force read memory
-      read_idx_cach = read_idx;
-      if ((int)(read_idx_cach - min_read_idx) < 0) { // no enough space
+      uint32_t read_idx_cache = read_idx;
+      if (read_idx_cache <= write_idx) {
+        free_write_cnt = BLK_CNT - write_idx;
+        if (blk_sz >= free_write_cnt && read_idx_cache != 0) { // wrap around
+          blk[0].size = 0;
+          asm volatile("" : : "m"(blk) :); // memory fence
+          blk[write_idx].size = 1;
+          write_idx = 0;
+          free_write_cnt = read_idx_cache;
+        }
+      }
+      else {
+        free_write_cnt = read_idx_cache - write_idx;
+      }
+      if (free_write_cnt <= blk_sz) {
         return nullptr;
       }
     }
-    if (rewind) {
-      blk[write_idx % BLK_CNT].header.size = 0;
-      asm volatile("" : : "m"(blk), "m"(write_idx) :); // memory fence
-      write_idx += padding_sz;
-    }
-    MsgHeader& header = blk[write_idx % BLK_CNT].header;
-    header.size = size;
-    return &header;
+    return &blk[write_idx];
   }
 
   void push() {
-    asm volatile("" : : "m"(blk), "m"(write_idx) :); // memory fence
-    uint32_t blk_sz = (blk[write_idx % BLK_CNT].header.size + sizeof(Block) - 1) / sizeof(Block);
+    uint32_t blk_sz = (size + sizeof(MsgHeader) - 1) / sizeof(MsgHeader);
+    blk[write_idx + blk_sz].size = 0;
+
+    asm volatile("" : : "m"(blk) :); // memory fence
+    blk[write_idx].size = size;
     write_idx += blk_sz;
-    asm volatile("" : : "m"(write_idx) :); // force write memory
+    free_write_cnt -= blk_sz;
   }
 
   template<typename Writer>
@@ -85,23 +88,19 @@ public:
   }
 
   MsgHeader* front() {
-    asm volatile("" : "=m"(write_idx), "=m"(blk) : :); // force read memory
-    if (read_idx == write_idx) {
-      return nullptr;
+    asm volatile("" : "=m"(blk) : :); // force read memory
+    uint16_t size = blk[read_idx].size;
+    if (size == 1) { // wrap around
+      read_idx = 0;
+      size = blk[0].size;
     }
-    uint16_t size = blk[read_idx % BLK_CNT].header.size;
-    if (size == 0) { // rewind
-      read_idx += BLK_CNT - (read_idx % BLK_CNT);
-      if (read_idx == write_idx) {
-        return nullptr;
-      }
-    }
-    return &blk[read_idx % BLK_CNT].header;
+    if (size == 0) return nullptr;
+    return &blk[read_idx];
   }
 
   void pop() {
     asm volatile("" : "=m"(blk) : "m"(read_idx) :); // memory fence
-    uint32_t blk_sz = (blk[read_idx % BLK_CNT].header.size + sizeof(Block) - 1) / sizeof(Block);
+    uint32_t blk_sz = (blk[read_idx].size + sizeof(MsgHeader) - 1) / sizeof(MsgHeader);
     read_idx += blk_sz;
     asm volatile("" : : "m"(read_idx) :); // force write memory
   }
@@ -116,13 +115,12 @@ public:
   }
 
 private:
-  struct Block // size of 64, same as cache line
-  {
-    alignas(64) MsgHeader header;
-  } blk[BLK_CNT];
+  alignas(64) MsgHeader blk[BLK_CNT];
 
   alignas(64) uint32_t write_idx = 0;
-  uint32_t read_idx_cach = 0; // used only by writing thread
+  uint32_t free_write_cnt;
+  uint16_t size;
+
   alignas(64) uint32_t read_idx = 0;
 };
 

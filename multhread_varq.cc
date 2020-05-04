@@ -2,33 +2,32 @@
 #include "rdtsc.h"
 #include "cpupin.h"
 #include "SPSCVarQueue.h"
+#include "SPSCVarQueueOPT.h"
 
-typedef SPSCVarQueue<1024> MsgQ;
+// typedef SPSCVarQueue<32 * 1024> MsgQ;
+typedef SPSCVarQueueOPT<32 * 1024> MsgQ;
 
-template<uint32_t N, uint16_t MSGTYPE>
-struct Msg
-{
-    static constexpr uint16_t msg_type = MSGTYPE;
-    long val[N];
-};
-
-typedef Msg<1, 1> Msg1;
-typedef Msg<2, 2> Msg2;
-typedef Msg<3, 3> Msg3;
-typedef Msg<4, 4> Msg4;
+using namespace std;
 
 MsgQ _q;
-const int loop = 100000;
+const int loop = 1000000;
 const int sleep_cycles = 1000;
+uint64_t alloc_lat = 0;
+uint64_t push_lat = 0;
 
-template<class T>
-void sendMsg(MsgQ* q, int& g_val) {
-  q->tryPush(sizeof(T), [&](MsgQ::MsgHeader* header) {
-    header->msg_type = T::msg_type;
-    T* msg = (T*)(header + 1);
-    for (auto& v : msg->val) v = ++g_val;
-    header->userdata = (uint32_t)rdtscp();
-  });
+void sendMsg(MsgQ* q, int n_long, int& g_val) {
+  auto tsc = rdtscp();
+  MsgQ::MsgHeader* header = q->alloc(n_long * sizeof(long));
+  auto tsc2 = rdtscp();
+  if (!header) return;
+  alloc_lat += tsc2 - tsc;
+  long* v = (long*)(header + 1);
+  for (int i = 0; i < n_long; i++) v[i] = ++g_val;
+  auto tsc3 = rdtscp();
+  header->userdata = (uint32_t)tsc3;
+  q->push();
+  auto tsc4 = rdtscp();
+  push_lat += tsc4 - tsc3;
 }
 
 void sendthread() {
@@ -36,30 +35,25 @@ void sendthread() {
     exit(1);
     }
 
+
     MsgQ* q = &_q;
 
     int g_val = 0;
     srand(time(NULL));
     while(g_val < loop) {
-      // std::this_thread::yield();
       int tp = rand() % 4 + 1;
-      switch (tp) {
-        case 1: sendMsg<Msg1>(q, g_val); break;
-        case 2: sendMsg<Msg2>(q, g_val); break;
-        case 3: sendMsg<Msg3>(q, g_val); break;
-        case 4: sendMsg<Msg4>(q, g_val); break;
-        }
-        auto expire = rdtsc() + sleep_cycles;
-        while (rdtsc() < expire)
-          ;
+      sendMsg(q, tp, g_val);
+      auto expire = rdtsc() + sleep_cycles;
+      while (rdtsc() < expire)
+        ;
     }
 }
 
-template<class T>
+
 void handleMsg(MsgQ::MsgHeader* header, int& g_val) {
-    T* msg = (T*)(header + 1);
-    for(auto v : msg->val) assert(v == ++g_val);
-    // for(int i = 0; i < sizeof(msg->val) / sizeof(*msg->val); i++) assert(msg->val[i] == ++g_val);
+  long* v = (long*)header + 1;
+  long* end = (long*)((char*)header + header->size);
+  while (v < end) assert(*v++ == ++g_val);
 }
 
 void recvthread() {
@@ -67,39 +61,52 @@ void recvthread() {
     exit(1);
     }
 
+    auto before = rdtscp();
+    for (int i = 0; i < 99; i++) rdtscp();
+    auto after = rdtscp();
+    auto rdtscp_lat = (after - before) / 100;
+
     MsgQ* q = &_q;
 
     int cnt = 0;
     long sum_lat = 0;
+    uint64_t front_lat = 0;
+    uint64_t pop_lat = 0;
     int g_val = 0;
     while(g_val < loop) {
-      q->tryPop([&](MsgQ::MsgHeader* header) {
-        long latency = (uint32_t)rdtscp();
+      auto tsc = rdtscp();
+      MsgQ::MsgHeader* header = q->front();
+      auto tsc2 = rdtscp();
+      if (header) {
+        front_lat += tsc2 - tsc;
+        long latency = (uint32_t)tsc2;
         latency -= header->userdata;
         if (latency < 0) latency += ((long)1 << 32);
         sum_lat += latency;
         cnt++;
-        switch (header->msg_type) {
-          case 1: handleMsg<Msg1>(header, g_val); break;
-          case 2: handleMsg<Msg2>(header, g_val); break;
-          case 3: handleMsg<Msg3>(header, g_val); break;
-          case 4: handleMsg<Msg4>(header, g_val); break;
-        }
-      });
+        handleMsg(header, g_val);
+        auto tsc3 = rdtscp();
+        q->pop();
+        auto tsc4 = rdtscp();
+        pop_lat += tsc4 - tsc3;
+      }
     }
 
-    std::cout << "shmq_recv done, val: " << g_val << " avg_lat: " << (sum_lat / cnt) << std::endl;
+    std::cout << "shmq_recv done, val: " << g_val << " rdtscp_lat: " << rdtscp_lat << " avg_lat: " << (sum_lat / cnt)
+              << " alloc_lat: " << (alloc_lat / cnt - rdtscp_lat) << " push_lat: " << (push_lat / cnt - rdtscp_lat)
+              << " front_lat: " << (front_lat / cnt - rdtscp_lat) << " pop_lat: " << (pop_lat / cnt - rdtscp_lat)
+              << std::endl;
 }
 
 
 int main() {
-    std::thread trecv(recvthread);
-    std::thread tsend(sendthread);
+  std::thread trecv(recvthread);
+  std::thread tsend(sendthread);
 
-    tsend.join();
-    trecv.join();
+  tsend.join();
+  trecv.join();
 
-    return 0;
+  return 0;
 }
 
 
