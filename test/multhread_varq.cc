@@ -4,8 +4,8 @@
 #include "../SPSCVarQueue.h"
 #include "../SPSCVarQueueOPT.h"
 
-// typedef SPSCVarQueue<32 * 1024> MsgQ;
-typedef SPSCVarQueueOPT<32 * 1024> MsgQ;
+// typedef SPSCVarQueue<1024 * 8> MsgQ;
+typedef SPSCVarQueueOPT<1024 * 8> MsgQ;
 
 using namespace std;
 
@@ -92,7 +92,7 @@ void recvthread() {
       }
     }
 
-    std::cout << "shmq_recv done, val: " << g_val << " rdtscp_lat: " << rdtscp_lat << " avg_lat: " << (sum_lat / cnt)
+    std::cout << "recv done, val: " << g_val << " rdtscp_lat: " << rdtscp_lat << " avg_lat: " << (sum_lat / cnt)
               << " alloc_lat: " << (alloc_lat / cnt - rdtscp_lat) << " push_lat: " << (push_lat / cnt - rdtscp_lat)
               << " front_lat: " << (front_lat / cnt - rdtscp_lat) << " pop_lat: " << (pop_lat / cnt - rdtscp_lat)
               << std::endl;

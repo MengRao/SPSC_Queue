@@ -116,10 +116,12 @@ public:
 
 private:
   alignas(64) MsgHeader blk[BLK_CNT];
+  char pad1[64];
 
   alignas(64) uint32_t write_idx = 0;
   uint32_t free_write_cnt;
   uint16_t size;
+  char pad2[64];
 
   alignas(64) uint32_t read_idx = 0;
 };
