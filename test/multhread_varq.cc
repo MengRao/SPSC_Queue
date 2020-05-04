@@ -1,8 +1,8 @@
 #include <bits/stdc++.h>
 #include "rdtsc.h"
 #include "cpupin.h"
-#include "SPSCVarQueue.h"
-#include "SPSCVarQueueOPT.h"
+#include "../SPSCVarQueue.h"
+#include "../SPSCVarQueueOPT.h"
 
 // typedef SPSCVarQueue<32 * 1024> MsgQ;
 typedef SPSCVarQueueOPT<32 * 1024> MsgQ;

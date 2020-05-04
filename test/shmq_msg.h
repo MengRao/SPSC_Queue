@@ -1,5 +1,5 @@
-#include "SPSCQueue.h"
-#include "SPSCQueueOPT.h"
+#include "../SPSCQueue.h"
+#include "../SPSCQueueOPT.h"
 #include "shmmap.h"
 
 struct Msg

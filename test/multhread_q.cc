@@ -1,8 +1,8 @@
 #include <bits/stdc++.h>
 #include "rdtsc.h"
 #include "cpupin.h"
-#include "SPSCQueue.h"
-#include "SPSCQueueOPT.h"
+#include "../SPSCQueue.h"
+#include "../SPSCQueueOPT.h"
 
 struct Msg
 {
