@@ -12,7 +12,7 @@ An atomic(crash safe when used in shared-memory IPC) single typed queue template
 An optimized implementation of SPSCQueue, in which each msg has an additional bool header and write_idx and read_idx are not shared between threads. Note that Push() and Pop() operation are not atomic so it should only be used in multithreaded programming.
 
 ## SPSCVarQueue.h
-An atomic(crash safe when used in shared-memory IPC) general purpose variant typed queue template, with a header before each msg.
+An atomic(crash safe when used in shared-memory IPC) general purpose variant typed queue template, with a header before each msg. This queue is used in [TCPSHM: a connection-oriented persistent message queue framework based on TCP or SHM ](https://github.com/MengRao/tcpshm).
 
 ## SPSCVarQueueOPT.h
 An optimized implementation of SPSCVarQueue, in which reader doens't need to read write_idx so latency is reduced when new msg comes. Note that SPSCVarQueueOPT is not atomic.
