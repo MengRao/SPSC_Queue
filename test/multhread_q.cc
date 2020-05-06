@@ -11,8 +11,8 @@ struct Msg
   long val[4];
 };
 
-// typedef SPSCQueue<Msg, 16> MsgQ;
-typedef SPSCQueueOPT<Msg, 16> MsgQ;
+// typedef SPSCQueue<Msg, 64> MsgQ;
+typedef SPSCQueueOPT<Msg, 64> MsgQ;
 
 const int loop = 1000000;
 const int sleep_cycles = 1000;

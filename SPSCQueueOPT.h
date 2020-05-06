@@ -32,66 +32,68 @@ template<class T, uint32_t CNT>
 class SPSCQueueOPT
 {
 public:
+  static_assert(CNT && !(CNT & (CNT - 1)), "CNT must be a power of 2");
 
-    T* alloc() {
-        asm volatile("" : "=m"(blk) : :); // force read memory
-        auto& cur_blk = blk[write_idx];
-        if(cur_blk.avail) return nullptr; // no enough space
-        return &cur_blk.data;
+  T* alloc() {
+    if (free_write_cnt == 1) {
+      asm volatile("" : "=m"(read_idx) : :); // force read memory
+      free_write_cnt = (read_idx - write_idx + CNT - 1) % CNT + 1;
+      if (free_write_cnt == 1) return nullptr;
     }
+    return &blk[write_idx].data;
+  }
 
-    void push() {
-        asm volatile("" : : "m"(blk) :); // memory fence
-        auto& cur_blk = blk[write_idx];
-        cur_blk.avail = true;
-        asm volatile("" : : "m"(blk) :); // force write memory
-        if(++write_idx == CNT) write_idx = 0;
-    }
+  void push() {
+    asm volatile("" : : "m"(blk) :); // memory fence
+    blk[write_idx].avail = true;
+    asm volatile("" : : "m"(blk) :); // force write fence
+    write_idx = (write_idx + 1) % CNT;
+    free_write_cnt--;
+  }
 
-    template<typename Writer>
-    bool tryPush(Writer writer) {
-      T* p = alloc();
-      if (!p) return false;
-      writer(p);
-      push();
-      return true;
-    }
+  template<typename Writer>
+  bool tryPush(Writer writer) {
+    T* p = alloc();
+    if (!p) return false;
+    writer(p);
+    push();
+    return true;
+  }
 
-    T* front() {
-        asm volatile("" : "=m"(blk) : :); // force read memory
-        auto& cur_blk = blk[read_idx];
-        if(!cur_blk.avail) return nullptr;
-        asm volatile("" : "=m"(blk) : :); // memory fence
-        return &cur_blk.data;
-    }
+  T* front() {
+    asm volatile("" : "=m"(blk) : :); // force read memory
+    auto& cur_blk = blk[read_idx];
+    if (!cur_blk.avail) return nullptr;
+    return &cur_blk.data;
+  }
 
-    void pop() {
-        asm volatile("" : "=m"(blk) : "m"(blk) :); // memory fence
-        auto& cur_blk = blk[read_idx];
-        cur_blk.avail = false;
-        asm volatile("" : : "m"(blk) :); // force write memory
-        if(++read_idx == CNT) read_idx = 0;
-    }
+  void pop() {
+    blk[read_idx].avail = false;
+    asm volatile("" : "=m"(blk) : "m"(read_idx) :); // memory fence
+    read_idx = (read_idx + 1) % CNT;
+    asm volatile("" : : "m"(read_idx) :); // force write memory
+  }
 
-    template<typename Reader>
-    bool tryPop(Reader reader) {
-      T* v = front();
-      if (!v) return false;
-      reader(v);
-      pop();
-      return true;
-    }
+  template<typename Reader>
+  bool tryPop(Reader reader) {
+    T* v = front();
+    if (!v) return false;
+    reader(v);
+    pop();
+    return true;
+  }
 
-  private:
-    struct alignas(64) Block
-    {
-        bool avail = false;
-        T data;
-    } blk[CNT];
+private:
+  struct alignas(64) Block
+  {
+    bool avail = false; // avail will be updated by both write and read thread
+    T data;
+  } blk[CNT];
 
-    alignas(128) uint32_t write_idx = 0; // used only by writing thread
+  alignas(128) uint32_t write_idx = 0; // used only by writing thread
+  uint32_t free_write_cnt = CNT;
 
-    alignas(128) uint32_t read_idx = 0; // used only by reading thread
+  alignas(128) uint32_t read_idx = 0;
 };
 
 
