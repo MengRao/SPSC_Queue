@@ -88,7 +88,7 @@ private:
   {
     bool avail = false; // avail will be updated by both write and read thread
     T data;
-  } blk[CNT];
+  } blk[CNT] = {};
 
   alignas(128) uint32_t write_idx = 0; // used only by writing thread
   uint32_t free_write_cnt = CNT;
