@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 #pragma once
+#include <atomic>
 
 // alloc and push are not atomic, so SPSCVarQueueOPT should not be used in shared-memory IPC(use SPSCVarQueue instead)
 template<uint32_t Bytes>
@@ -46,13 +47,12 @@ public:
     size = size_ + sizeof(MsgHeader);
     uint32_t blk_sz = (size + sizeof(MsgHeader) - 1) / sizeof(MsgHeader);
     if (blk_sz >= free_write_cnt) {
-      asm volatile("" : "=m"(read_idx) : :); // force read memory
-      uint32_t read_idx_cache = read_idx;
+      uint32_t read_idx_cache = *(volatile uint32_t*)&read_idx;
       if (read_idx_cache <= write_idx) {
         free_write_cnt = BLK_CNT - write_idx;
         if (blk_sz >= free_write_cnt && read_idx_cache != 0) { // wrap around
           blk[0].size = 0;
-          asm volatile("" : : "m"(blk) :); // memory fence
+          std::atomic_thread_fence(std::memory_order_release);
           blk[write_idx].size = 1;
           write_idx = 0;
           free_write_cnt = read_idx_cache;
@@ -71,8 +71,8 @@ public:
   void push() {
     uint32_t blk_sz = (size + sizeof(MsgHeader) - 1) / sizeof(MsgHeader);
     blk[write_idx + blk_sz].size = 0;
+    std::atomic_thread_fence(std::memory_order_release);
 
-    asm volatile("" : : "m"(blk) :); // memory fence
     blk[write_idx].size = size;
     write_idx += blk_sz;
     free_write_cnt -= blk_sz;
@@ -88,7 +88,6 @@ public:
   }
 
   MsgHeader* front() {
-    asm volatile("" : "=m"(blk) : :); // force read memory
     uint16_t size = blk[read_idx].size;
     if (size == 1) { // wrap around
       read_idx = 0;
@@ -99,10 +98,8 @@ public:
   }
 
   void pop() {
-    asm volatile("" : "=m"(blk) : "m"(read_idx) :); // memory fence
     uint32_t blk_sz = (blk[read_idx].size + sizeof(MsgHeader) - 1) / sizeof(MsgHeader);
-    read_idx += blk_sz;
-    asm volatile("" : : "m"(read_idx) :); // force write memory
+    *(volatile uint32_t*)&read_idx = read_idx + blk_sz;
   }
 
   template<typename Reader>
