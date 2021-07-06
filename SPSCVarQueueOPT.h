@@ -120,10 +120,10 @@ public:
 private:
   alignas(64) MsgHeader blk[BLK_CNT] = {};
 
-  alignas(128) uint32_t read_idx = 0;
-
   alignas(128) uint32_t write_idx = 0;
   uint32_t free_write_cnt = BLK_CNT;
   uint16_t size;
+
+  alignas(128) uint32_t read_idx = 0;
 };
 
