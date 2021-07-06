@@ -96,10 +96,10 @@ private:
     T data;
   } blk[CNT] = {};
 
+  alignas(128) uint32_t read_idx = 0;
+
   alignas(128) uint32_t write_idx = 0; // used only by writing thread
   uint32_t free_write_cnt = CNT;
-
-  alignas(128) uint32_t read_idx = 0;
 };
 
 
