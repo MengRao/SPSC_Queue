@@ -60,6 +60,12 @@ public:
     return true;
   }
 
+  template<typename Writer>
+  void blockPush(Writer writer) {
+    while (!tryPush(writer))
+      ;
+  }
+
   T* front() {
     asm volatile("" : "=m"(blk) : :); // force read memory
     auto& cur_blk = blk[read_idx];

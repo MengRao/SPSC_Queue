@@ -87,6 +87,12 @@ public:
     return true;
   }
 
+  template<typename Writer>
+  void blockPush(uint16_t size, Writer writer) {
+    while (!tryPush(size, writer))
+      ;
+  }
+
   MsgHeader* front() {
     uint16_t size = blk[read_idx].size;
     if (size == 1) { // wrap around

@@ -84,6 +84,12 @@ public:
     return true;
   }
 
+  template<typename Writer>
+  void blockPush(uint16_t size, Writer writer) {
+    while (!tryPush(size, writer))
+      ;
+  }
+
   MsgHeader* front() {
     asm volatile("" : "=m"(write_idx), "=m"(blk) : :); // force read memory
     if (read_idx == write_idx) {

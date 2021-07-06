@@ -56,6 +56,12 @@ public:
       return true;
     }
 
+    template<typename Writer>
+    void blockPush(Writer writer) {
+      while (!tryPush(writer))
+        ;
+    }
+
     T* front() {
         asm volatile("" : "=m"(write_idx) : : ); // force read memory
         if(read_idx == write_idx) {
