@@ -21,9 +21,9 @@ uint64_t push_lat = 0;
 MsgQ _q;
 
 void sendthread() {
-  if (!cpupin(4)) {
+  if (!cpupin(6)) {
     exit(1);
-    }
+  }
 
     MsgQ* q = &_q;
 
@@ -58,9 +58,9 @@ void sendthread() {
 }
 
 void recvthread() {
-  if (!cpupin(5)) {
+  if (!cpupin(7)) {
     exit(1);
-    }
+  }
     auto before = rdtscp();
     for (int i = 0; i < 99; i++) rdtscp();
     auto after = rdtscp();

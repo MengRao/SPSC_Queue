@@ -35,18 +35,16 @@ public:
   static_assert(CNT && !(CNT & (CNT - 1)), "CNT must be a power of 2");
 
   T* alloc() {
-    if (free_write_cnt == 1) {
-      asm volatile("" : "=m"(read_idx) : :); // force read memory
-      free_write_cnt = (read_idx - write_idx + CNT - 1) % CNT + 1;
-      if (free_write_cnt == 1) return nullptr;
+    if (free_write_cnt == 0) {
+      uint32_t rd_idx = ((std::atomic<uint32_t>*)&read_idx)->load(std::memory_order_consume);
+      free_write_cnt = (rd_idx - write_idx + CNT - 1) % CNT;
+      if (__builtin_expect(free_write_cnt == 0, 0)) return nullptr;
     }
     return &blk[write_idx].data;
   }
 
   void push() {
-    asm volatile("" : : "m"(blk) :); // memory fence
-    blk[write_idx].avail = true;
-    asm volatile("" : : "m"(blk) :); // force write fence
+    ((std::atomic<bool>*)&blk[write_idx].avail)->store(true, std::memory_order_release);
     write_idx = (write_idx + 1) % CNT;
     free_write_cnt--;
   }
@@ -67,17 +65,14 @@ public:
   }
 
   T* front() {
-    asm volatile("" : "=m"(blk) : :); // force read memory
     auto& cur_blk = blk[read_idx];
-    if (!cur_blk.avail) return nullptr;
+    if (!((std::atomic<bool>*)&cur_blk.avail)->load(std::memory_order_acquire)) return nullptr;
     return &cur_blk.data;
   }
 
   void pop() {
     blk[read_idx].avail = false;
-    asm volatile("" : "=m"(blk) : "m"(read_idx) :); // memory fence
-    read_idx = (read_idx + 1) % CNT;
-    asm volatile("" : : "m"(read_idx) :); // force write memory
+    ((std::atomic<uint32_t>*)&read_idx)->store((read_idx + 1) % CNT, std::memory_order_release);
   }
 
   template<typename Reader>
@@ -97,7 +92,7 @@ private:
   } blk[CNT] = {};
 
   alignas(128) uint32_t write_idx = 0; // used only by writing thread
-  uint32_t free_write_cnt = CNT;
+  uint32_t free_write_cnt = CNT - 1;
 
   alignas(128) uint32_t read_idx = 0;
 };
