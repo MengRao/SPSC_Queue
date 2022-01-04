@@ -23,6 +23,7 @@ SOFTWARE.
 */
 
 #pragma once
+#include <atomic>
 
 // Be aware that push()/pop() is not atomic.
 // So if the queue is persisted in some shared memory and the writer/reader program crashed
