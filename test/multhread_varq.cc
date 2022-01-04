@@ -31,10 +31,9 @@ void sendMsg(MsgQ* q, int n_long, int& g_val) {
 }
 
 void sendthread() {
-  if (!cpupin(4)) {
+  if (!cpupin(6)) {
     exit(1);
-    }
-
+  }
 
     MsgQ* q = &_q;
 
@@ -57,9 +56,9 @@ void handleMsg(MsgQ::MsgHeader* header, int& g_val) {
 }
 
 void recvthread() {
-  if (!cpupin(5)) {
+  if (!cpupin(7)) {
     exit(1);
-    }
+  }
 
     auto before = rdtscp();
     for (int i = 0; i < 99; i++) rdtscp();
