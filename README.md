@@ -9,7 +9,7 @@ This Library mainly contains 4 C++ templates, 2 for single typed queue and 2 for
 An atomic(crash safe when used in shared-memory IPC) single typed queue template.
 
 ## SPSCQueueOPT.h
-An optimized implementation of SPSCQueue, in which each msg has an additional bool header and write_idx and read_idx are not shared between threads. Note that Push() and Pop() operation are not atomic so it should only be used in multithreaded programming.
+An optimized implementation of SPSCQueue, in which each msg has an additional bool header and write_idx and read_idx are not shared between threads. Note that Push() and Pop() operation are not atomic so it should not be used in IPC.
 
 ## SPSCVarQueue.h
 An atomic(crash safe when used in shared-memory IPC) general purpose variant typed queue template, with a header before each msg. This queue is used in [TCPSHM: a connection-oriented persistent message queue framework based on TCP or SHM ](https://github.com/MengRao/tcpshm).
