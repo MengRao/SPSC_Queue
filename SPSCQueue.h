@@ -42,7 +42,7 @@ public:
     }
 
     void push() {
-      ((std::atomic<uint32_t>*)&write_idx)->store(write_idx + 1, std::memory_order_release);
+      ((std::atomic<uint32_t>*)&write_idx)->store((write_idx + 1) % CNT, std::memory_order_release);
     }
 
     template<typename Writer>
@@ -68,7 +68,7 @@ public:
     }
 
     void pop() {
-      ((std::atomic<uint32_t>*)&read_idx)->store(read_idx + 1, std::memory_order_release);
+      ((std::atomic<uint32_t>*)&read_idx)->store((read_idx + 1) % CNT, std::memory_order_release);
     }
 
     template<typename Reader>
